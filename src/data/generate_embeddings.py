@@ -4,24 +4,42 @@ from os import listdir
 from src import CLEARED_DATA_FOLDER
 from path import Path
 from numpy import array
-from dataclasses import dataclass
 from typing import Union
+
+from sentence_transformers import SentenceTransformer
 
 file = CLEARED_DATA_FOLDER / listdir(CLEARED_DATA_FOLDER)[0]
 
-@dataclass
 class Embedding: 
-    id: str
-    vector: array = array([0])
-    metadata: dict
 
+    model: SentenceTransformer = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+
+    id: str
+    vector: array
+    metadata: dict[str, str]
+    _default_str: str
+
+    def __init__(self, id: str, content_to_embed: str, metadata: dict[str, str]):
+        self.id = id
+        self._default_str = content_to_embed
+        self.metadata = metadata
+
+        self.vector = Embedding._create_embedding(content_to_embed)
+
+    @classmethod
     def _create_embedding(self, text: str) -> array: 
-        pass
+        embeddings = Embedding.model.encode(text)
+       
+       # Convert tensor to array, return array
+
+
+        return array([0])
 
     def get_pinecone_record(self) -> dict[str, Union[str, array, dict]]:
         return { "id": self.id, "values": self.vector, "metadata": self.metadata }
-
-
+    
+    def __str__(self):
+        return "[id: {}\nvector: {}\nmetadata: {}]".format(self.id, self.vector, self.metadata) 
 
 def create_embeddings(path_to_file: Path) -> None: 
     upsert_batch: list[Embedding] = []
@@ -46,7 +64,9 @@ def create_embeddings(path_to_file: Path) -> None:
     print(dataset_combined.head())
     print(upsert_batch[0])
 
-create_embeddings(file)
+# create_embeddings(file)
+
+test = Embedding("test-1", "I like cats and i walk with them", {})
 
 
 
