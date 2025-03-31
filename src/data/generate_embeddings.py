@@ -1,21 +1,25 @@
 import pandas as pd
+import tqdm
+import msgpack
+import json
+import sys
+import re
 
 from os import listdir
-from src import CLEARED_DATA_FOLDER
+from src import CLEARED_DATA_FOLDER, EMBEDDINGS_FILE, EMBEDDINGS_FOLDER
 from path import Path
-from numpy import array
+from numpy import ndarray
 from typing import Union
+import concurrent.futures
 
 from sentence_transformers import SentenceTransformer
 
-file = CLEARED_DATA_FOLDER / listdir(CLEARED_DATA_FOLDER)[0]
-
 class Embedding: 
 
-    model: SentenceTransformer = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    model: SentenceTransformer = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2') # Adjust ? Move to .env ? 
 
     id: str
-    vector: array
+    vector: ndarray
     metadata: dict[str, str]
     _default_str: str
 
@@ -26,90 +30,110 @@ class Embedding:
 
         self.vector = Embedding._create_embedding(content_to_embed)
 
-    @classmethod
-    def _create_embedding(self, text: str) -> array: 
-        embeddings = Embedding.model.encode(text)
-       
-       # Convert tensor to array, return array
-
-
-        return array([0])
-
-    def get_pinecone_record(self) -> dict[str, Union[str, array, dict]]:
-        return { "id": self.id, "values": self.vector, "metadata": self.metadata }
+    def to_pinecone_record(self) -> dict[str, Union[str, ndarray, dict]]:
+        return { "id": self.id, "values": self.vector.tolist(), "metadata": self.metadata }
     
     def __str__(self):
         return "[id: {}\nvector: {}\nmetadata: {}]".format(self.id, self.vector, self.metadata) 
+    
+    def get_size(self) -> int:
+        total_size: int = 0
+        total_size += self.vector.nbytes
 
-def create_embeddings(path_to_file: Path) -> None: 
-    upsert_batch: list[Embedding] = []
+        for val in self.metadata.values():
+            if type(val) == str:
+                total_size += 2 * len(val)
 
-    brand_name: str = path_to_file.name[:-4].split("_")[-1]
-    dataset_combined: pd.DataFrame = pd.read_csv(path_to_file, index_col=0)
+        return total_size
+
+    @classmethod
+    def _create_embedding(self, text: str) -> ndarray: 
+        embeddings: ndarray = Embedding.model.encode(text, convert_to_numpy=True)
+        return embeddings
+
+
+def get_deep_size(obj):
+    if isinstance(obj, (str, bytes)):
+        return sys.getsizeof(obj) + len(obj.encode("utf-8"))  
+    elif isinstance(obj, dict):
+        return sys.getsizeof(obj) + sum(get_deep_size(k) + get_deep_size(v) for k, v in obj.items())
+    elif isinstance(obj, list) or isinstance(obj, tuple):
+        return sys.getsizeof(obj) + sum(get_deep_size(item) for item in obj)
+    elif isinstance(obj, float) or isinstance(obj, int):
+        return sys.getsizeof(obj)
+    else:
+        return sys.getsizeof(obj)
+
+
+def generate_embeddings(input_file: Path, output_file: Path = None, show_progress_bar: bool = True, save_to_json: bool = False, save_to_bin: bool = True) -> list[Embedding] | None: 
+
+    assert input_file.exists()
+
+    embeddings: list[Embedding] = []
+
+    brand_name: str = input_file.name[:-4].split("_")[-1]
+    dataset_combined: pd.DataFrame = pd.read_csv(input_file, index_col=0)
     dataset_combined  = dataset_combined.drop(['Review_Date', 'Author_Name'], axis=1)
     new_indexes = [f"{brand_name}-{i}" for i in range(dataset_combined.shape[0])]
     dataset_combined.index = pd.Index(new_indexes)
+    dataset_combined = dataset_combined.fillna('')
 
-    for index, data in dataset_combined.iterrows(): upsert_batch.append(Embedding(index, 
-                                                                                  data["Review"], 
-                                                                                  {
-                                                                                      "text": data["Review"], 
-                                                                                      "review_title": data["Review_Title"],
-                                                                                      "rating": data["Rating"],
-                                                                                      "vehicle_model": data["Vehicle_Title"]
-                                                                                  }
-                                                                                    ))
-    
+    if show_progress_bar: progress_bar: tqdm.tqdm = tqdm.tqdm(total=dataset_combined.shape[0], desc=f"Generating for {input_file.name}")
 
-    print(dataset_combined.head())
-    print(upsert_batch[0])
+    total_size: int = 0
+    size_limit: int = 30 * 2**20 # 30 MB, 40 MB max
 
-# create_embeddings(file)
+    for index, data in dataset_combined.iterrows(): 
+        if size_limit < total_size: break
+        new_embedding: Embedding = Embedding(    index, 
+                                        data["Review"], 
+                                        {
+                                            "text":            data["Review"], 
+                                            "review_title":    data["Review_Title"],
+                                            "rating":          data["Rating"],
+                                            "vehicle_model":   data["Vehicle_Title"]
+                                        }
+                                          )
+        
+        embeddings.append(new_embedding.to_pinecone_record())
+        total_size += new_embedding.get_size()
+        if show_progress_bar: progress_bar.update(1)
 
-test = Embedding("test-1", "I like cats and i walk with them", {})
+    if output_file == None: return embeddings
 
+    if save_to_bin:
+        output_file: Path = Path(re.sub(pattern=r'\.[a-z]+', repl="", string=output_file) + ".msgpack")
+        with open(output_file, "wb") as out_file: 
+            binary_pack = msgpack.packb(embeddings)
+            out_file.write(binary_pack)
 
+    if save_to_json:
+        output_file: Path = Path(re.sub(pattern=r'\.[a-z]+', repl="", string=output_file) + ".json")
+        with open(output_file, "w") as out_file: 
+            json_format: str = json.dumps(embeddings)
+            out_file.write(json_format)
+            return
 
+if __name__ == "__main__": 
 
+    # file: Path = Path("/home/nsjg/Desktop/Vstorm/Chat_prep_prj/strike-team-2-app/resources/cleared_data/Scraped_Car_Review_ford.csv")
+    # out = Path("/home/nsjg/Desktop/Vstorm/Chat_prep_prj/strike-team-2-app/src/data/test")
+    # generate_embeddings(file, out, True, True, True)
 
-# for file in listdir(DATA_FOLDER)[:3]:
-#     if file.endswith(".csv"):
-#         print(DATA_FOLDER / file)
-#         pd.concat([dataset_combined, pd.read_csv(DATA_FOLDER / file)], ignore_index=True)
+    input_files: list[Path] = CLEARED_DATA_FOLDER.listdir()
+    output_files: list[Path] = [EMBEDDINGS_FOLDER / x[:-4] for x in listdir(CLEARED_DATA_FOLDER)]
 
-# dataset_combined.head()
-# dataset_combined.tail()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        futures: list[concurrent.futures.Future] = []
 
-# import pinecone
-# from sentence_transformers import SentenceTransformer
+        for input_file, output_file in zip(input_files, output_files):
+            futures.append(executor.submit(generate_embeddings, input_file, output_file, True, False, True))
 
-# # Initialize Pinecone
-# pinecone.init(api_key="YOUR_API_KEY", environment="YOUR_ENVIRONMENT")  # Replace with your API key and environment
-# index_name = "your-index-name"
+        concurrent.futures.wait(futures)
 
-# # Create or connect to an index
-# if index_name not in pinecone.list_indexes():
-#     pinecone.create_index(index_name, dimension=768)  # Adjust dimension based on your vector size
-# index = pinecone.Index(index_name)
-
-# # Load the CSV file
-# csv_file = "/path/to/your/csv_file.csv"
-# df = pd.read_csv(csv_file)
-
-# # Initialize a pre-trained model for generating embeddings
-# model = SentenceTransformer('all-MiniLM-L6-v2')  # Replace with your preferred model
-
-# # Prepare data for Pinecone
-# vectors = []
-# for i, row in df.iterrows():
-#     # Generate a dense vector for the text (e.g., a review column)
-#     vector = model.encode(row['review_text'])  # Replace 'review_text' with the appropriate column name
-#     # Create a unique ID for the vector
-#     vector_id = f"row-{i}"
-#     # Append the vector and metadata
-#     vectors.append((vector_id, vector, {"metadata_key": row['metadata_column']}))  # Replace metadata_key/column as needed
-
-# # Upsert vectors into Pinecone
-# index.upsert(vectors)
-
-# print("Data successfully uploaded to Pinecone!")
+        """
+        Read like this: 
+            with open("embeddings.bin", "rb") as file:
+                data = file.read()
+                obj = msgpack.unpackb(data) # outputs list[dict]
+        """
