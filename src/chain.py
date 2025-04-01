@@ -1,7 +1,7 @@
 from typing import Callable
 from openai import OpenAI
 import json
-from main import CallbackType
+from data.callback_handler import CallbackType
 
 
 class LlmModule:
