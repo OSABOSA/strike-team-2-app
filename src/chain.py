@@ -39,7 +39,7 @@ class LlmModule:
 
     def process_tool_calls(self, response):
         used_tools = False
-        for tool_call in response.output:
+        for tool_call in response:
             if tool_call.type != "function_call":
                 continue
             used_tools = True
@@ -65,14 +65,16 @@ class LlmModule:
             tools=self.tools,
             stream=True
         )
+        items = {}
         for event in stream:
             if event.type == "response.output_text.delta":
                 self.progress_callback(CallbackType.DELTA, event.delta)
             if event.type == "response.output_text.done":
                 self.progress_callback(CallbackType.RESPONSE, event.text)
-                return stream
-            if event.type == "response.function_call_arguments.done":
-                return stream
+            if event.type == "response.output_item.done":
+                items[event.output_index] = event.item
+        return items
+
 
     def chat(self, query):
         self.messages.append({
