@@ -47,6 +47,7 @@ class LlmModule:
             self.progress_callback(CallbackType.STATUS, "Thinking...")
             self.messages.append(tool_call)
             args = json.loads(tool_call.arguments)
+            self.progress_callback(CallbackType.INIT, "test")
             result: list = self.db_query_callback(args["query"], args["num_results"])  # database interface
             self.messages.append({
                 "status": "success",
