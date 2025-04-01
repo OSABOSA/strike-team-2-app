@@ -39,16 +39,17 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
         self.pc = Pinecone(api_key=get_config.Settings.pinecone_api_key)
 
     def create_index(self) -> bool:
-        index = self.pc.create_index(
+        index: pinecone.IndexModel = self.pc.create_index(
             name="car-reviews",
             dimension=384,
             metric="consine",
             spec=pinecone.ServerlessSpec(
-                cloud='aws', 
-                region='us-east-1'
+                cloud='gcp', 
+                region='eu-west4-gcp'
             )
         )
 
+        
 
     def upsert_data(self) -> bool: 
         pass
