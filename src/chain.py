@@ -39,7 +39,7 @@ class LlmModule:
 
     def process_tool_calls(self, response):
         used_tools = False
-        for tool_call in response:
+        for tool_call in response.output:
             if tool_call.type != "function_call":
                 continue
             used_tools = True
@@ -58,22 +58,30 @@ class LlmModule:
     def reset_messages(self):
         self.messages = []
 
-    def get_response(self):
+    # broken
+    '''def get_response(self):
         stream = self.client.responses.create(
             model=self.model,
             input=self.messages,
             tools=self.tools,
             stream=True
         )
-        items = {}
+        items = []
         for event in stream:
             if event.type == "response.output_text.delta":
                 self.progress_callback(CallbackType.DELTA, event.delta)
             if event.type == "response.output_text.done":
                 self.progress_callback(CallbackType.RESPONSE, event.text)
             if event.type == "response.output_item.done":
-                items[event.output_index] = event.item
-        return items
+                items.append(event.item))
+        return items'''
+
+    def get_response(self):
+        return self.client.responses.create(
+            model=self.model,
+            input=self.messages,
+            tools=self.tools
+        )
 
 
     def chat(self, query):
