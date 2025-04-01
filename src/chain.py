@@ -72,12 +72,8 @@ class LlmModule:
         response = self.get_response()
         if self.process_tool_calls(response):
             response = self.get_response()
-            self.messages.append({
-                "role": "assistant",
-                "content": response.output_text
-            })
-        else:
-            self.messages.append({
-                "role": "assistant",
-                "content": response.output_text
-            })
+        self.messages.append({
+            "role": "assistant",
+            "content": response.output_text
+        })
+
