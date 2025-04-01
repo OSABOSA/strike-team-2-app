@@ -1,15 +1,15 @@
 from typing import Callable
 from openai import OpenAI
 import json
-from src.main import CallbackType
+from data.callback_handler import CallbackType
 
 
 class LlmModule:
 
-    def __init__(self, API_KEY, progress_callback: Callable[[CallbackType, str], None], db_query_callback: Callable[[str, int], list], model_name="gpt-4o-mini"):
+    def __init__(self, progress_callback: Callable[[CallbackType, str], None], db_query_callback: Callable[[str, int], list], model_name="gpt-4o-mini"):
         self.progress_callback = progress_callback
         self.db_query_callback = db_query_callback
-        self.client = OpenAI(API_KEY)
+        self.client = OpenAI()
         self.model = model_name
         self.tools = [{
             "type": "function",

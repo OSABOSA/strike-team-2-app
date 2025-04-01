@@ -1,20 +1,8 @@
 import streamlit as st
-from src.chain import LlmModule
-from enum import Enum
-from src.data.database_ops import PineconeVectorDatabase
+from chain import LlmModule
+from data.database_ops import PineconeVectorDatabase
 from dotenv import load_dotenv, find_dotenv
-
-
-class CallbackType(Enum):
-    INIT = 1
-    STATUS = 2
-    DELTA = 3
-    RESPONSE = 4
-
-
-def callback_llm_response(response_type, response):
-    if response_type == CallbackType.DELTA:
-        st.write(response)
+from data.callback_handler import callback_llm_response
 
 
 def main():
@@ -27,8 +15,11 @@ def main():
     st.title("Car review finder")
     st.write("This is a simple app that finds car reviews.")
 
-    st.text_input("Ask a question")
+    query = st.text_input("Ask a question")
 
     if st.button("Find reviews"):
-        llm.chat(st.text_input)
+        llm.chat(query)
 
+
+if __name__ == "__main__":
+    main()
