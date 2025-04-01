@@ -1,5 +1,6 @@
 import streamlit as st
 
+from models import LocalModels
 
 def page_text_to_image(client):
     st.title("Text to Image")
@@ -50,7 +51,6 @@ def page_llm(client):
     question = st.text_input("Enter a question")
     if st.button("Query Model"):
         # response = client.llm(question)
-        from models import LocalModels
         response = LocalModels.ask_local_llm(question)
         st.success("Model queried successfully.")
         st.write("Response:")

@@ -139,8 +139,11 @@ def upsert_file_to_database(path_to_file: Path, batch_size: int) -> bool:
 
 if __name__ == "__main__": 
 
-    input_files: list[Path] = EMBEDDINGS_FOLDER.listdir()
+    database: PineconeVectorDatabase = PineconeVectorDatabase()
+    print(database.get_index_description())
 
-    for embeddings_file in input_files:
-        upsert_file_to_database(embeddings_file, 100)
+    # input_files: list[Path] = EMBEDDINGS_FOLDER.listdir()
+
+    # for embeddings_file in input_files:
+    #     upsert_file_to_database(embeddings_file, 100)
 
