@@ -1,9 +1,10 @@
+from typing import Callable
 from openai import OpenAI
 import json
 
 class LlmModule:
 
-    def __init__(self, API_KEY, progress_callback, db_query_callback, model_name="gpt-4o-mini"):
+    def __init__(self, API_KEY, progress_callback: Callable, db_query_callback: Callable[[str, int], list], model_name="gpt-4o-mini"):
         self.progress_callback = progress_callback
         self.db_query_callback = db_query_callback
         self.client = OpenAI(API_KEY)
@@ -43,6 +44,7 @@ class LlmModule:
             result = self.db_query_callback(args["query"], args["num_results"])  # database interface
 
             self.messages.append({
+                "status": "success",
                 "type": "function_call_output",
                 "call_id": tool_call.call_id,
                 "output": json.dumps(result)
@@ -57,7 +59,7 @@ class LlmModule:
             "content": query
         })
         response = self.client.responses.create(
-            model="gpt-4o-mini",
+            model=self.model,
             input=self.messages,
             tools=self.tools
         )
