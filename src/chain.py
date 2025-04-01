@@ -96,11 +96,14 @@ class LlmModule:
 
 
     def chat(self, query):
+
         self.messages.append({
             "role": "user",
             "content": query
         })
+
         response = self.get_response()
+        
         if self.process_tool_calls(response):
             response = self.get_response()
             self.messages.append({
