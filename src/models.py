@@ -1,4 +1,4 @@
-from huggingface_hub import InferenceClient
+from huggingface_hub import InferenceClient, login
 from dotenv import load_dotenv, find_dotenv
 import os
 
@@ -18,6 +18,7 @@ class HuggingFaceModels:
     def __init__(self):
         load_dotenv(find_dotenv())
         api_key = os.getenv("Langchain_HuggingFace_Strike2_Access_Token")
+        login(token=api_key)
         self.client = InferenceClient(
             provider="hf-inference",
             api_key=api_key,

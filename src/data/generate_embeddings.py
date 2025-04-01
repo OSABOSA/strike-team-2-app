@@ -6,7 +6,7 @@ import sys
 import re
 
 from os import listdir
-from src import CLEARED_DATA_FOLDER, EMBEDDINGS_FILE, EMBEDDINGS_FOLDER
+from src import CLEARED_DATA_FOLDER, EMBEDDINGS_FOLDER
 from path import Path
 from numpy import ndarray
 from typing import Union
@@ -28,7 +28,7 @@ class Embedding:
         self._default_str = content_to_embed
         self.metadata = metadata
 
-        self.vector = Embedding._create_embedding(content_to_embed)
+        self.vector = Embedding.create_embedding(content_to_embed)
 
     def to_pinecone_record(self) -> dict[str, Union[str, ndarray, dict]]:
         return { "id": self.id, "values": self.vector.tolist(), "metadata": self.metadata }
@@ -47,7 +47,7 @@ class Embedding:
         return total_size
 
     @classmethod
-    def _create_embedding(self, text: str) -> ndarray: 
+    def create_embedding(self, text: str) -> ndarray:
         embeddings: ndarray = Embedding.model.encode(text, convert_to_numpy=True)
         return embeddings
 
