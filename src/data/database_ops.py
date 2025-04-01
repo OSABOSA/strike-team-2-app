@@ -3,6 +3,7 @@ from pinecone.grpc import PineconeGRPC as Pinecone
 import pinecone
 
 from abc import ABC, abstractmethod
+import pinecone.grpc
 from src import get_config
 
 from generate_embeddings import Embedding
@@ -29,7 +30,8 @@ class VectorDatabaseInterface(ABC):
 class PineconeVectorDatabase(VectorDatabaseInterface): 
 
     pc: Pinecone
-    index_host_name: str = 'cars-reviews'
+    index: pinecone.grpc.GRPCIndex
+    index_data: dict
 
     def __init__(self):
         super().__init__()
@@ -37,15 +39,14 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
 
         self.pc = Pinecone(api_key=get_config.Settings.pinecone_api_key)
 
-    def get_index(self) -> pinecone.Index: 
-        """Returns HOST name of index"""
         indexes_list: pinecone.IndexList = self.pc.list_indexes()
-        host_name: str = indexes_list[0]["host"]
+        self.index_data = indexes_list[0]
+        
+        self.index = self.pc.Index(host=self.index_data["host"])
 
-        return self.pc.Index(host=host_name)
 
     def get_index_description(self) -> pinecone.IndexModel: 
-        return self.pc.describe_index(self.get_index())
+        return self.pc.describe_index(self.index_data["name"])
 
     def upsert_data(self) -> bool:
         pass
@@ -67,7 +68,7 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
 
 if __name__ == "__main__": 
     database: PineconeVectorDatabase = PineconeVectorDatabase()
-
+    print(database.get_index_description())
     
 
 # pinecone.init(api_key="YOUR_API_KEY", environment="YOUR_ENVIRONMENT")  # Replace with your API key and environment
