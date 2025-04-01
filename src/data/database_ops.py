@@ -8,22 +8,24 @@ from typing import Iterator
 
 from src import get_config
 
+from generate_embeddings import Embedding
+
 class VectorDatabaseInterface(ABC):
 
     @abstractmethod
-    def upsert_data() -> bool: 
+    def upsert_data(self) -> bool:
         pass
 
     @abstractmethod
-    def query_data() -> bool: 
+    def query_data(self, text: str):
         pass
 
     @abstractmethod
-    def fetch_data() -> bool: 
+    def fetch_data(self, ids: str | list[str]) -> FetchResponse | PineconeGrpcFuture:
         pass
 
     @abstractmethod
-    def delete_data() -> bool:
+    def delete_data(self, ids: str | list[str]) -> None:
         pass
 
 
@@ -81,14 +83,19 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
         
 
 
-    def query_data(self) -> bool: 
-        pass
+    def query_data(self, text: str):
+        return self.index.query(
+            vector=Embedding.create_embedding(text).tolist(),
+            top_k=3,
+            include_metadata=True,
+            include_values=False
+        )
 
-    def fetch_data(self) -> bool: 
-        pass
+    def fetch_data(self, ids: str | list[str]) -> FetchResponse | PineconeGrpcFuture:
+        return self.index.fetch([ids]) if type(ids) == str else self.index.fetch(ids)
 
-    def delete_data(self) -> bool:
-        pass
+    def delete_data(self, ids: str | list[str]) -> None:
+        self.index.delete([ids]) if type(ids) == str else self.index.delete(ids)
 
 
 if __name__ == "__main__": 

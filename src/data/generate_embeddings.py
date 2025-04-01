@@ -28,7 +28,7 @@ class Embedding:
         self._default_str = content_to_embed
         self.metadata = metadata
 
-        self.vector = Embedding._create_embedding(content_to_embed)
+        self.vector = Embedding.create_embedding(content_to_embed)
 
     def to_pinecone_record(self) -> dict[str, Union[str, ndarray, dict]]:
         return { "id": self.id, "values": self.vector.tolist(), "metadata": self.metadata }
@@ -47,7 +47,7 @@ class Embedding:
         return total_size
 
     @classmethod
-    def _create_embedding(self, text: str) -> ndarray: 
+    def create_embedding(self, text: str) -> ndarray:
         embeddings: ndarray = Embedding.model.encode(text, convert_to_numpy=True)
         return embeddings
 
