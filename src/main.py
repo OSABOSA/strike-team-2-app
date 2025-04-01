@@ -6,7 +6,7 @@ from data.database_ops import PineconeVectorDatabase
 
 class CallbackType(Enum):
     INIT = 1
-    QUERY = 2
+    STATUS = 2
     DELTA = 3
     RESPONSE = 4
 
