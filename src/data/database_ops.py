@@ -1,10 +1,10 @@
 import pinecone
 import pinecone.grpc
 
+from pinecone import IndexModel
 from pinecone.grpc import PineconeGRPC as Pinecone
 from pinecone.grpc import PineconeGrpcFuture
 from pinecone.core.openapi.db_data.model.fetch_response import FetchResponse
-from pinecone.core.openapi.db_data.model.upsert_response import UpsertResponse
 
 import msgpack
 import tqdm
@@ -20,7 +20,7 @@ from src.data.generate_embeddings import Embedding
 class VectorDatabaseInterface(ABC):
 
     @abstractmethod
-    def upsert_data(self) -> bool:
+    def upsert_data(self, records: dict | list[dict], batch_size: int) -> bool:
         pass
 
     @abstractmethod
@@ -54,7 +54,7 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
         self.index = self.pc.Index(host=self.index_data["host"])
 
 
-    def get_index_description(self) -> pinecone.IndexModel: 
+    def get_index_description(self) -> IndexModel: 
         return self.pc.describe_index(self.index_data["name"])
 
 
@@ -132,13 +132,12 @@ def upsert_file_to_database(path_to_file: Path, batch_size: int) -> bool:
     with open(path_to_file, "rb") as file:
         bin_data = file.read() 
         embeddings = msgpack.unpackb(bin_data)
-
+        print("Upserting data from: {}".format(path_to_file.name))
         database.upsert_data(records=embeddings, batch_size=batch_size)
 
 
 
 if __name__ == "__main__": 
-    # upsert_file_to_database(EMBEDDINGS_FOLDER / "Scraped_Car_Review_mclaren.msgpack", 20) # Test
 
     input_files: list[Path] = EMBEDDINGS_FOLDER.listdir()
 
