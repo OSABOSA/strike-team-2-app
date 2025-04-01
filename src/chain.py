@@ -36,9 +36,11 @@ class LlmModule:
         self.messages = []  # [{"role": "user", "content": ""}]
 
     def process_tool_calls(self, response):
+        used_tools = False
         for tool_call in response.output:
             if tool_call.type != "function_call":
                 continue
+            used_tools = True
             self.messages.append(tool_call)
             args = json.loads(tool_call)
             result = self.db_query_callback(args["query"], args["num_results"])  # database interface
@@ -49,18 +51,33 @@ class LlmModule:
                 "call_id": tool_call.call_id,
                 "output": json.dumps(result)
             })
+        return used_tools
+
 
     def reset_messages(self):
         self.messages = []
 
-    def LLM_response(self, query):
-        self.messages.append({
-            "role": "user",
-            "content": query
-        })
-        response = self.client.responses.create(
+    def get_response(self):
+        return self.client.responses.create(
             model=self.model,
             input=self.messages,
             tools=self.tools
         )
-        self.process_tool_calls(response)
+
+    def chat(self, query):
+        self.messages.append({
+            "role": "user",
+            "content": query
+        })
+        response = self.get_response()
+        if self.process_tool_calls(response):
+            response = self.get_response()
+            self.messages.append({
+                "role": "assistant",
+                "content": response.output_text
+            })
+        else:
+            self.messages.append({
+                "role": "assistant",
+                "content": response.output_text
+            })
