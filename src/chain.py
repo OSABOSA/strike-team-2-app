@@ -40,13 +40,13 @@ class LlmModule:
 
     def process_tool_calls(self, response):
         used_tools = False
-        for tool_call in response.output:
+        for tool_call in response:
             if tool_call.type != "function_call":
                 continue
             used_tools = True
             self.progress_callback(CallbackType.STATUS, "Thinking...")
             self.messages.append(tool_call)
-            args = json.loads(tool_call)
+            args = json.loads(tool_call.arguments)
             result: list = self.db_query_callback(args["query"], args["num_results"])  # database interface
             self.messages.append({
                 "status": "success",
@@ -60,7 +60,7 @@ class LlmModule:
         self.messages = []
 
     # broken
-    '''def get_response(self):
+    def get_response(self):
         stream = self.client.responses.create(
             model=self.model,
             input=self.messages,
@@ -74,15 +74,15 @@ class LlmModule:
             if event.type == "response.output_text.done":
                 self.progress_callback(CallbackType.RESPONSE, event.text)
             if event.type == "response.output_item.done":
-                items.append(event.item))
-        return items'''
+                items.append(event.item)
+        return items
 
-    def get_response(self):
+    '''def get_response(self):
         return self.client.responses.create(
             model=self.model,
             input=self.messages,
             tools=self.tools
-        )
+        )'''
 
 
     def chat(self, query):
@@ -95,11 +95,11 @@ class LlmModule:
             response = self.get_response()
             self.messages.append({
                 "role": "assistant",
-                "content": response.output_text
+                "content": response[0].content
             })
         else:
             self.messages.append({
                 "role": "assistant",
-                "content": response.output_text
+                "content": response[0].content
             })
-        self.progress_callback(CallbackType.RESPONSE, response.output_text)
+        self.progress_callback(CallbackType.RESPONSE, response[0].content)
