@@ -102,3 +102,4 @@ class LlmModule:
                 "role": "assistant",
                 "content": response.output_text
             })
+        self.progress_callback(CallbackType.RESPONSE, response.output_text)
