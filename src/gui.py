@@ -1,6 +1,6 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
-from pages import page_image_to_text, page_llm, page_sentiment_analysis, page_text_to_image
+from src.pages import page_image_to_text, page_llm, page_sentiment_analysis, page_text_to_image
 from models import HuggingFaceModels
 
 

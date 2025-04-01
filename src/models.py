@@ -1,13 +1,15 @@
+import os
+
 from huggingface_hub import InferenceClient, login
 from dotenv import load_dotenv, find_dotenv
-import os
+from langchain_community.llms import LlamaCpp
 
 
 class LocalModels:
 
     @staticmethod
     def ask_local_llm(question: str, model_path: str = "C:/Users/0oski/.lmstudio/models/lmstudio-community/DeepSeek-R1-Distill-Qwen-7B-GGUF/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf") -> str:
-        from langchain_community.llms import LlamaCpp
+        
         llm = LlamaCpp(
             model_path=model_path)
         response = llm.invoke(question)
