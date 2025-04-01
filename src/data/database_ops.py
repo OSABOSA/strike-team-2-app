@@ -2,13 +2,13 @@ import pinecone
 import pinecone.grpc
 
 from pinecone.grpc import PineconeGRPC as Pinecone
+from pinecone.grpc import PineconeGrpcFuture
+from pinecone.core.openapi.db_data.model.fetch_response import FetchResponse
 
 from abc import ABC, abstractmethod
-from typing import Iterator
-
 from src import get_config
 
-from generate_embeddings import Embedding
+from src.data.generate_embeddings import Embedding
 
 class VectorDatabaseInterface(ABC):
 
