@@ -1,19 +1,26 @@
 import pinecone
 import pinecone.grpc
 
+from pinecone import IndexModel
 from pinecone.grpc import PineconeGRPC as Pinecone
 from pinecone.grpc import PineconeGrpcFuture
 from pinecone.core.openapi.db_data.model.fetch_response import FetchResponse
 
+import msgpack
+import tqdm
+from src import EMBEDDINGS_FOLDER
 from abc import ABC, abstractmethod
 from src import get_config
+from path import Path
+
 
 from src.data.generate_embeddings import Embedding
+
 
 class VectorDatabaseInterface(ABC):
 
     @abstractmethod
-    def upsert_data(self) -> bool:
+    def upsert_data(self, records: dict | list[dict], batch_size: int) -> bool:
         pass
 
     @abstractmethod
@@ -47,39 +54,49 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
         self.index = self.pc.Index(host=self.index_data["host"])
 
 
-    def get_index_description(self) -> pinecone.IndexModel: 
+    def get_index_description(self) -> IndexModel: 
         return self.pc.describe_index(self.index_data["name"])
 
+
     def upsert_data(self, records: dict | list[dict], batch_size: int) -> bool: 
-        """ Record format is: [
-            ("id1", embedding_vector1, {"metadata_key": "value"}),
-            ("id2", embedding_vector2, {"metadata_key": "value"}),
+        """ Record format is: list[dict] - [
+            {"id1", embedding_vector1, {"metadata_key": "value"}},
+            {"id2", embedding_vector2, {"metadata_key": "value"}},
             ]
         """
         # max 2 MB size in a batch
 
         upsert_batch: list[dict] = []
 
-        if type(records) == dict: upsert_batch.append(records)
+        if type(records) == dict: upsert_batch = [records]
+        else: upsert_batch = records
 
         low_index: int = 0
         high_index: int = batch_size
         
         # Transfer in chunks
+        progress_bar: tqdm.tqdm = tqdm.tqdm(total=len(records), desc=f"Upserting...")
+
         while high_index < len(records):
             try:
-                responce = self.index.upsert(namespace="default-namespace", vectors=upsert_batch[low_index:high_index])
-                assert responce["upsertedCount"] == batch_size
-            except AssertionError: print("Upsert did not succeed"); return
+                response = self.index.upsert(namespace="default-namespace", vectors=upsert_batch[low_index:high_index])
+                assert response.upserted_count == batch_size
+            except: print("Upsert did not succeed"); return False
 
             low_index += batch_size
             high_index += batch_size
+            progress_bar.update(batch_size)
 
         # Transfer reminder
         try:
-            self.index.upsert(namespace="default-namespace", vectors=upsert_batch[low_index:])
-            assert responce["upsertedCount"] == batch_size
+            response = self.index.upsert(namespace="default-namespace", vectors=upsert_batch[low_index:])
+            assert response.upserted_count == len(records)%batch_size
         except AssertionError: print("Upsert did not succeed"); return
+
+        progress_bar.update(len(records)%batch_size)
+
+        return True
+
 
     def query_data(self, text: str, top_k: int = 3) -> list[str]:
         """
@@ -103,40 +120,27 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
     def fetch_data(self, ids: str | list[str]) -> FetchResponse | PineconeGrpcFuture:
         return self.index.fetch([ids]) if type(ids) == str else self.index.fetch(ids)
 
+
     def delete_data(self, ids: str | list[str]) -> None:
         self.index.delete([ids]) if type(ids) == str else self.index.delete(ids)
 
 
-if __name__ == "__main__": 
+def upsert_file_to_database(path_to_file: Path, batch_size: int) -> bool: 
+
     database: PineconeVectorDatabase = PineconeVectorDatabase()
-    print(database.get_index_description())
-    
 
-# pinecone.init(api_key="YOUR_API_KEY", environment="YOUR_ENVIRONMENT")  # Replace with your API key and environment
-# index_name = "your-index-name"
-
-# if index_name not in pinecone.list_indexes():
-#     pinecone.create_index(index_name, dimension=384)  # From embedding model
-# index = pinecone.Index(index_name)
+    with open(path_to_file, "rb") as file:
+        bin_data = file.read() 
+        embeddings = msgpack.unpackb(bin_data)
+        print("Upserting data from: {}".format(path_to_file.name))
+        database.upsert_data(records=embeddings, batch_size=batch_size)
 
 
-# # Load the CSV file
-# csv_file = "/path/to/your/csv_file.csv"
-# df = pd.read_csv(csv_file)
 
-# # Initialize a pre-trained model for generating embeddings
-# model = SentenceTransformer('all-MiniLM-L6-v2')  # Replace with your preferred model
+if __name__ == "__main__": 
 
-# # Prepare data for Pinecone
-# vectors = []
-# for i, row in df.iterrows():
-#     # Generate a dense vector for the text (e.g., a review column)
-#     vector = model.encode(row['review_text'])  # Replace 'review_text' with the appropriate column name
-#     # Create a unique ID for the vector
-#     vector_id = f"row-{i}"
-#     # Append the vector and metadata
-#     vectors.append((vector_id, vector, {"metadata_key": row['metadata_column']}))  # Replace metadata_key/column as needed
+    input_files: list[Path] = EMBEDDINGS_FOLDER.listdir()
 
-# # Upsert vectors into Pinecone
-# index.upsert(vectors)
+    for embeddings_file in input_files:
+        upsert_file_to_database(embeddings_file, 100)
 
