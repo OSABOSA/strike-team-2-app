@@ -6,7 +6,7 @@ import sys
 import re
 
 from os import listdir
-from src import CLEARED_DATA_FOLDER, EMBEDDINGS_FILE, EMBEDDINGS_FOLDER
+from src import CLEARED_DATA_FOLDER, EMBEDDINGS_FOLDER
 from path import Path
 from numpy import ndarray
 from typing import Union

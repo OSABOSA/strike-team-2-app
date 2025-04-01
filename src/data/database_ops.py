@@ -1,9 +1,11 @@
+import pinecone
+import pinecone.grpc
+
 from pinecone.grpc import PineconeGRPC as Pinecone
 
-import pinecone
-
 from abc import ABC, abstractmethod
-import pinecone.grpc
+from typing import Iterator
+
 from src import get_config
 
 class VectorDatabaseInterface(ABC):
@@ -46,8 +48,38 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
     def get_index_description(self) -> pinecone.IndexModel: 
         return self.pc.describe_index(self.index_data["name"])
 
-    def upsert_data(self) -> bool: 
-        pass
+    def upsert_data(self, records: dict | list[dict], batch_size: int) -> bool: 
+        """ Record format is: [
+            ("id1", embedding_vector1, {"metadata_key": "value"}),
+            ("id2", embedding_vector2, {"metadata_key": "value"}),
+            ]
+        """
+        # max 2 MB size in a batch
+
+        upsert_batch: list[dict] = []
+
+        if type(records) == dict: upsert_batch.append(records)
+
+        low_index: int = 0
+        high_index: int = batch_size
+        
+        # Transfer in chunks
+        while high_index < len(records):
+            try:
+                responce = self.index.upsert(namespace="default-namespace", vectors=upsert_batch[low_index:high_index])
+                assert responce["upsertedCount"] == batch_size
+            except AssertionError: print("Upsert did not succeed"); return
+
+            low_index += batch_size
+            high_index += batch_size
+
+        # Transfer reminder
+        try:
+            self.index.upsert(namespace="default-namespace", vectors=upsert_batch[low_index:])
+            assert responce["upsertedCount"] == batch_size
+        except AssertionError: print("Upsert did not succeed"); return
+        
+
 
     def query_data(self) -> bool: 
         pass
