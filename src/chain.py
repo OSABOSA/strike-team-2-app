@@ -1,14 +1,15 @@
 from typing import Callable
 from openai import OpenAI
 import json
+from main import CallbackType
 
 
 class LlmModule:
 
-    def __init__(self, progress_callback: Callable, db_query_callback: Callable[[str, int], list], model_name="gpt-4o-mini"):
+    def __init__(self, API_KEY, progress_callback: Callable[[CallbackType, str], None], db_query_callback: Callable[[str, int], list], model_name="gpt-4o-mini"):
         self.progress_callback = progress_callback
         self.db_query_callback = db_query_callback
-        self.client = OpenAI()
+        self.client = OpenAI(API_KEY)
         self.model = model_name
         self.tools = [{
             "type": "function",
@@ -42,10 +43,10 @@ class LlmModule:
             if tool_call.type != "function_call":
                 continue
             used_tools = True
+            self.progress_callback(CallbackType.STATUS, "Thinking...")
             self.messages.append(tool_call)
             args = json.loads(tool_call)
-            result = self.db_query_callback(args["query"], args["num_results"])  # database interface
-
+            result: list = self.db_query_callback(args["query"], args["num_results"])  # database interface
             self.messages.append({
                 "status": "success",
                 "type": "function_call_output",
@@ -58,11 +59,20 @@ class LlmModule:
         self.messages = []
 
     def get_response(self):
-        return self.client.responses.create(
+        stream = self.client.responses.create(
             model=self.model,
             input=self.messages,
-            tools=self.tools
+            tools=self.tools,
+            stream=True
         )
+        for event in stream:
+            if event.type == "response.output_text.delta":
+                self.progress_callback(CallbackType.DELTA, event.delta)
+            if event.type == "response.output_text.done":
+                self.progress_callback(CallbackType.RESPONSE, event.text)
+                return stream
+            if event.type == "response.function_call_arguments.done":
+                return stream
 
     def chat(self, query):
         self.messages.append({
@@ -72,8 +82,12 @@ class LlmModule:
         response = self.get_response()
         if self.process_tool_calls(response):
             response = self.get_response()
-        self.messages.append({
-            "role": "assistant",
-            "content": response.output_text
-        })
-
+            self.messages.append({
+                "role": "assistant",
+                "content": response.output_text
+            })
+        else:
+            self.messages.append({
+                "role": "assistant",
+                "content": response.output_text
+            })

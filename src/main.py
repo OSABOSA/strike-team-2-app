@@ -7,12 +7,13 @@ from dotenv import load_dotenv, find_dotenv
 
 class CallbackType(Enum):
     INIT = 1
-    QUERY = 2
-    RESPONSE = 3
+    STATUS = 2
+    DELTA = 3
+    RESPONSE = 4
 
 
 def callback_llm_response(response_type, response):
-    if response_type == CallbackType.RESPONSE:
+    if response_type == CallbackType.DELTA:
         st.write(response)
 
 
