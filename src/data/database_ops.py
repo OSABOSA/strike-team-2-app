@@ -5,6 +5,8 @@ import pinecone
 from abc import ABC, abstractmethod
 from src import get_config
 
+from generate_embeddings import Embedding
+
 class VectorDatabaseInterface(ABC):
 
     @abstractmethod
@@ -45,11 +47,16 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
     def get_index_description(self) -> pinecone.IndexModel: 
         return self.pc.describe_index(self.get_index())
 
-    def upsert_data(self) -> bool: 
+    def upsert_data(self) -> bool:
         pass
 
-    def query_data(self) -> bool: 
-        pass
+    def query_data(self, text: str) -> bool:
+        return self.index.query(
+            vector=Embedding.create_embedding(text),
+            top_k=3,
+            include_metadata=True,
+            include_values=False
+        )
 
     def fetch_data(self) -> bool: 
         pass

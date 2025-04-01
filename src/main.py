@@ -3,7 +3,6 @@ from streamlit_option_menu import option_menu
 from pages import page_image_to_text, page_llm, page_sentiment_analysis, page_text_to_image
 from models import HuggingFaceModels
 
-
 def main():
     client = HuggingFaceModels()
     st.set_page_config(page_title="Multi-Page Streamlit App", page_icon="📘", layout="wide")
