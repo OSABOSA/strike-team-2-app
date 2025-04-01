@@ -2,12 +2,13 @@ from typing import Callable
 from openai import OpenAI
 import json
 
+
 class LlmModule:
 
-    def __init__(self, API_KEY, progress_callback: Callable, db_query_callback: Callable[[str, int], list], model_name="gpt-4o-mini"):
+    def __init__(self, progress_callback: Callable, db_query_callback: Callable[[str, int], list], model_name="gpt-4o-mini"):
         self.progress_callback = progress_callback
         self.db_query_callback = db_query_callback
-        self.client = OpenAI(API_KEY)
+        self.client = OpenAI()
         self.model = model_name
         self.tools = [{
             "type": "function",
@@ -53,7 +54,6 @@ class LlmModule:
             })
         return used_tools
 
-
     def reset_messages(self):
         self.messages = []
 
@@ -72,12 +72,8 @@ class LlmModule:
         response = self.get_response()
         if self.process_tool_calls(response):
             response = self.get_response()
-            self.messages.append({
-                "role": "assistant",
-                "content": response.output_text
-            })
-        else:
-            self.messages.append({
-                "role": "assistant",
-                "content": response.output_text
-            })
+        self.messages.append({
+            "role": "assistant",
+            "content": response.output_text
+        })
+
