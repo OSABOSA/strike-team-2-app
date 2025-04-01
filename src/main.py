@@ -15,10 +15,10 @@ def main():
     st.title("Car review finder")
     st.write("This is a simple app that finds car reviews.")
 
-    st.text_input("Ask a question")
+    query = st.text_input("Ask a question")
 
     if st.button("Find reviews"):
-        llm.chat(st.text_input)
+        llm.chat(query)
 
 
 if __name__ == "__main__":
