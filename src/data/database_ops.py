@@ -17,7 +17,7 @@ class VectorDatabaseInterface(ABC):
         pass
 
     @abstractmethod
-    def query_data(self, text: str):
+    def query_data(self, text: str, top_k: int = 3) -> dict:
         pass
 
     @abstractmethod
@@ -80,13 +80,11 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
             self.index.upsert(namespace="default-namespace", vectors=upsert_batch[low_index:])
             assert responce["upsertedCount"] == batch_size
         except AssertionError: print("Upsert did not succeed"); return
-        
 
-
-    def query_data(self, text: str):
+    def query_data(self, text: str, top_k: int = 3) -> dict:
         return self.index.query(
             vector=Embedding.create_embedding(text).tolist(),
-            top_k=3,
+            top_k=top_k,
             include_metadata=True,
             include_values=False
         )
