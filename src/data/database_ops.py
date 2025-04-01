@@ -4,9 +4,15 @@ import pinecone.grpc
 from pinecone.grpc import PineconeGRPC as Pinecone
 from pinecone.grpc import PineconeGrpcFuture
 from pinecone.core.openapi.db_data.model.fetch_response import FetchResponse
+from pinecone.core.openapi.db_data.model.upsert_response import UpsertResponse
 
+import msgpack
+import tqdm
+from src import EMBEDDINGS_FOLDER
 from abc import ABC, abstractmethod
 from src import get_config
+from path import Path
+
 
 from src.data.generate_embeddings import Embedding
 
@@ -53,35 +59,43 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
 
 
     def upsert_data(self, records: dict | list[dict], batch_size: int) -> bool: 
-        """ Record format is: [
-            ("id1", embedding_vector1, {"metadata_key": "value"}),
-            ("id2", embedding_vector2, {"metadata_key": "value"}),
+        """ Record format is: list[dict] - [
+            {"id1", embedding_vector1, {"metadata_key": "value"}},
+            {"id2", embedding_vector2, {"metadata_key": "value"}},
             ]
         """
         # max 2 MB size in a batch
 
         upsert_batch: list[dict] = []
 
-        if type(records) == dict: upsert_batch.append(records)
+        if type(records) == dict: upsert_batch = [records]
+        else: upsert_batch = records
 
         low_index: int = 0
         high_index: int = batch_size
         
         # Transfer in chunks
+        progress_bar: tqdm.tqdm = tqdm.tqdm(total=len(records), desc=f"Upserting...")
+
         while high_index < len(records):
             try:
-                responce = self.index.upsert(namespace="default-namespace", vectors=upsert_batch[low_index:high_index])
-                assert responce["upsertedCount"] == batch_size
-            except AssertionError: print("Upsert did not succeed"); return
+                response = self.index.upsert(namespace="default-namespace", vectors=upsert_batch[low_index:high_index])
+                assert response.upserted_count == batch_size
+            except: print("Upsert did not succeed"); return False
 
             low_index += batch_size
             high_index += batch_size
+            progress_bar.update(batch_size)
 
         # Transfer reminder
         try:
-            self.index.upsert(namespace="default-namespace", vectors=upsert_batch[low_index:])
-            assert responce["upsertedCount"] == batch_size
+            response = self.index.upsert(namespace="default-namespace", vectors=upsert_batch[low_index:])
+            assert response.upserted_count == len(records)%batch_size
         except AssertionError: print("Upsert did not succeed"); return
+
+        progress_bar.update(len(records)%batch_size)
+
+        return True
 
 
     def query_data(self, text: str, top_k: int = 3) -> dict:
@@ -101,6 +115,23 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
         self.index.delete([ids]) if type(ids) == str else self.index.delete(ids)
 
 
-if __name__ == "__main__": 
+def upsert_file_to_database(path_to_file: Path, batch_size: int) -> bool: 
+
     database: PineconeVectorDatabase = PineconeVectorDatabase()
-    print(database.get_index_description())
+
+    with open(path_to_file, "rb") as file:
+        bin_data = file.read() 
+        embeddings = msgpack.unpackb(bin_data)
+
+        database.upsert_data(records=embeddings, batch_size=batch_size)
+
+
+
+if __name__ == "__main__": 
+    # upsert_file_to_database(EMBEDDINGS_FOLDER / "Scraped_Car_Review_mclaren.msgpack", 20) # Test
+
+    input_files: list[Path] = EMBEDDINGS_FOLDER.listdir()
+
+    for embeddings_file in input_files:
+        upsert_file_to_database(embeddings_file, 100)
+
