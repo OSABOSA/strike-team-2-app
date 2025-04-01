@@ -1,5 +1,5 @@
 import streamlit as st
-from chain import LlmModule
+from src.chain import LlmModule
 from src.data.database_ops import PineconeVectorDatabase
 from dotenv import load_dotenv, find_dotenv
 from src.data.callback_handler import callback_llm_response

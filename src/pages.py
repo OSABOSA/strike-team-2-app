@@ -1,6 +1,7 @@
 import streamlit as st
 
-from models import LocalModels
+from src.models import LocalModels
+
 
 def page_text_to_image(client):
     st.title("Text to Image")

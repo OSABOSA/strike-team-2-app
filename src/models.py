@@ -1,7 +1,8 @@
+import os
+
 from huggingface_hub import InferenceClient, login
 from dotenv import load_dotenv, find_dotenv
 from langchain_community.llms import LlamaCpp
-import os
 
 
 class LocalModels:
