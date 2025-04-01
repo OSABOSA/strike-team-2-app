@@ -8,10 +8,6 @@ from src import get_config
 class VectorDatabaseInterface(ABC):
 
     @abstractmethod
-    def create_index() -> bool:
-        pass
-
-    @abstractmethod
     def upsert_data() -> bool: 
         pass
 
@@ -31,6 +27,7 @@ class VectorDatabaseInterface(ABC):
 class PineconeVectorDatabase(VectorDatabaseInterface): 
 
     pc: Pinecone
+    index_host_name: str = 'cars-reviews'
 
     def __init__(self):
         super().__init__()
@@ -38,17 +35,15 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
 
         self.pc = Pinecone(api_key=get_config.Settings.pinecone_api_key)
 
-    def create_index(self) -> bool:
-        index = self.pc.create_index(
-            name="car-reviews",
-            dimension=384,
-            metric="consine",
-            spec=pinecone.ServerlessSpec(
-                cloud='aws', 
-                region='us-east-1'
-            )
-        )
+    def get_index(self) -> pinecone.Index: 
+        """Returns HOST name of index"""
+        indexes_list: pinecone.IndexList = self.pc.list_indexes()
+        host_name: str = indexes_list[0]["host"]
 
+        return self.pc.Index(host=host_name)
+
+    def get_index_description(self) -> pinecone.IndexModel: 
+        return self.pc.describe_index(self.get_index())
 
     def upsert_data(self) -> bool: 
         pass
@@ -61,6 +56,11 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
 
     def delete_data(self) -> bool:
         pass
+
+
+if __name__ == "__main__": 
+    database: PineconeVectorDatabase = PineconeVectorDatabase()
+
     
 
 # pinecone.init(api_key="YOUR_API_KEY", environment="YOUR_ENVIRONMENT")  # Replace with your API key and environment
