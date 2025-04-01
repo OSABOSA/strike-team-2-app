@@ -1,5 +1,5 @@
 import re
-import path as Path
+
 from src import RAW_DATA_FOLDER, CLEARED_DATA_FOLDER
 
 def test_clear_data() -> None:

@@ -1,8 +1,8 @@
 import streamlit as st
 from chain import LlmModule
-from data.database_ops import PineconeVectorDatabase
+from src.data.database_ops import PineconeVectorDatabase
 from dotenv import load_dotenv, find_dotenv
-from data.callback_handler import callback_llm_response
+from src.data.callback_handler import callback_llm_response
 
 
 def main():

@@ -50,7 +50,7 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
 
         indexes_list: pinecone.IndexList = self.pc.list_indexes()
         self.index_data = indexes_list[0]
-        print(indexes_list)
+        
         self.index = self.pc.Index(host=self.index_data["host"])
 
 
