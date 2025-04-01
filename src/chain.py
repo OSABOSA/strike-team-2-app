@@ -44,17 +44,26 @@ class LlmModule:
             if tool_call.type != "function_call":
                 continue
             used_tools = True
-            self.progress_callback(CallbackType.STATUS, "Thinking...")
-            self.messages.append(tool_call)
+
+            self.messages.append(tool_call)  # broken
             args = json.loads(tool_call.arguments)
-            self.progress_callback(CallbackType.INIT, "test")
+            self.progress_callback(CallbackType.STATUS, args["query"])
             result: list = self.db_query_callback(args["query"], args["num_results"])  # database interface
-            self.messages.append({
-                "status": "success",
-                "type": "function_call_output",
-                "call_id": tool_call.call_id,
-                "output": json.dumps(result)
-            })
+
+            if len(result) is not 0:
+                self.messages.append({
+                    "status": "success",
+                    "type": "function_call_output",
+                    "call_id": tool_call.call_id,
+                    "output": json.dumps(result)
+                })
+            else:
+                self.messages.append({
+                    "status": "fail",
+                    "type": "function_call_output",
+                    "call_id": tool_call.call_id,
+                    "output": ""
+                })
         return used_tools
 
     def reset_messages(self):

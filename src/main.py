@@ -2,7 +2,7 @@ import streamlit as st
 from src.chain import LlmModule
 from src.data.database_ops import PineconeVectorDatabase
 from dotenv import load_dotenv, find_dotenv
-from src.data.callback_handler import callback_llm_response
+from src.data.callback_handler import callback_llm_response, pass_placeholder
 
 
 def main():
@@ -19,6 +19,9 @@ def main():
 
     if st.button("Find reviews"):
         llm.chat(query)
+
+    output_placeholder = st.empty()
+    pass_placeholder(output_placeholder)
 
 
 if __name__ == "__main__":
