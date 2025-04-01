@@ -10,6 +10,6 @@ class CallbackType(Enum):
 
 
 def callback_llm_response(response_type, response):
-    if response_type == CallbackType.DELTA:
+    if response_type == CallbackType.RESPONSE:
         st.write(response)
 
