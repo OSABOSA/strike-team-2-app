@@ -88,7 +88,7 @@ def generate_embeddings(input_file: Path, output_file: Path = None, show_progres
         new_embedding: Embedding = Embedding(    index, 
                                         data["Review"], 
                                         {
-                                            "text":            data["Review"], 
+                                            "text":            data["Review"],
                                             "review_title":    data["Review_Title"],
                                             "rating":          data["Rating"],
                                             "vehicle_model":   data["Vehicle_Title"]
