@@ -40,13 +40,14 @@ class LlmModule:
 
     def process_tool_calls(self, response):
         used_tools = False
-        for tool_call in response.output:
+        for tool_call in response:
             if tool_call.type != "function_call":
                 continue
             used_tools = True
             self.progress_callback(CallbackType.STATUS, "Thinking...")
             self.messages.append(tool_call)
-            args = json.loads(tool_call)
+            args = json.loads(tool_call.arguments)
+            self.progress_callback(CallbackType.INIT, "test")
             result: list = self.db_query_callback(args["query"], args["num_results"])  # database interface
             self.messages.append({
                 "status": "success",
@@ -59,6 +60,7 @@ class LlmModule:
     def reset_messages(self):
         self.messages = []
 
+    # broken
     def get_response(self):
         stream = self.client.responses.create(
             model=self.model,
@@ -66,14 +68,23 @@ class LlmModule:
             tools=self.tools,
             stream=True
         )
+        items = []
         for event in stream:
             if event.type == "response.output_text.delta":
                 self.progress_callback(CallbackType.DELTA, event.delta)
             if event.type == "response.output_text.done":
                 self.progress_callback(CallbackType.RESPONSE, event.text)
-                return stream
-            if event.type == "response.function_call_arguments.done":
-                return stream
+            if event.type == "response.output_item.done":
+                items.append(event.item)
+        return items
+
+    '''def get_response(self):
+        return self.client.responses.create(
+            model=self.model,
+            input=self.messages,
+            tools=self.tools
+        )'''
+
 
     def chat(self, query):
 
@@ -88,10 +99,11 @@ class LlmModule:
             response = self.get_response()
             self.messages.append({
                 "role": "assistant",
-                "content": response.output_text
+                "content": response[0].content
             })
         else:
             self.messages.append({
                 "role": "assistant",
-                "content": response.output_text
+                "content": response[0].content
             })
+        self.progress_callback(CallbackType.RESPONSE, response[0].content)

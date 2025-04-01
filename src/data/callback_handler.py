@@ -10,6 +10,9 @@ class CallbackType(Enum):
 
 
 def callback_llm_response(response_type, response):
-    if response_type == CallbackType.DELTA:
+    if response_type == CallbackType.RESPONSE or response_type == CallbackType.STATUS:
         st.write(response)
+    elif response_type == CallbackType.INIT:
+        st.write(f"Searching in database for {response}")
+
 
