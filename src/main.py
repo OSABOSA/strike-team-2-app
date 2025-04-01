@@ -1,32 +1,33 @@
 import streamlit as st
-from streamlit_option_menu import option_menu
-from pages import page_image_to_text, page_llm, page_sentiment_analysis, page_text_to_image
-from models import HuggingFaceModels
+from chain import LlmModule
+from enum import Enum
+from data.database_ops import PineconeVectorDatabase
+from dotenv import load_dotenv, find_dotenv
+
+
+class CallbackType(Enum):
+    INIT = 1
+    QUERY = 2
+    RESPONSE = 3
+
+
+def callback_llm_response(response_type, response):
+    if response_type == CallbackType.RESPONSE:
+        st.write(response)
+
 
 def main():
-    client = HuggingFaceModels()
-    st.set_page_config(page_title="Multi-Page Streamlit App", page_icon="📘", layout="wide")
+    load_dotenv(find_dotenv())
 
-    # Sidebar navigation
-    with st.sidebar:
-        selected = option_menu(
-            menu_title="Navigation",  # Required
-            options=["Image to text", "Text to image", "Chat", "Sentiment Analysis"],  # Required
-            icons=["house", "info-circle", "envelope", "phone"],  # Optional
-            menu_icon="cast",  # Optional
-            default_index=0,  # Optional
-        )
+    database = PineconeVectorDatabase()
 
-    # Display content based on selected page
-    if selected == "Image to text":
-        page_image_to_text(client)
-    elif selected == "Text to image":
-        page_text_to_image(client)
-    elif selected == "Chat":
-        page_llm(client)
-    elif selected == "Sentiment Analysis":
-        page_sentiment_analysis(client)
+    llm = LlmModule(progress_callback=callback_llm_response, db_query_callback=database.query_data)  # TODO change nonsense arguments
 
+    st.title("Car review finder")
+    st.write("This is a simple app that finds car reviews.")
 
-if __name__ == "__main__":
-    main()
+    st.text_input("Ask a question")
+
+    if st.button("Find reviews"):
+        llm.chat(st.text_input)
+

@@ -24,7 +24,7 @@ class VectorDatabaseInterface(ABC):
         pass
 
     @abstractmethod
-    def query_data(self, text: str, top_k: int = 3) -> dict:
+    def query_data(self, text: str, top_k: int = 3) -> list[str]:
         pass
 
     @abstractmethod
@@ -98,14 +98,24 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
         return True
 
 
-    def query_data(self, text: str, top_k: int = 3) -> dict:
-        return self.index.query(
+    def query_data(self, text: str, top_k: int = 3) -> list[str]:
+        """
+        Query the Pinecone index for the most similar text chunks.
+
+        Args:
+            text (str): The text to query.
+            top_k (int): The number of most similar text chunks to return.
+
+        Returns:
+            list[str]: The most similar text chunks.
+        """
+        data = self.index.query(
             vector=Embedding.create_embedding(text).tolist(),
             top_k=top_k,
             include_metadata=True,
             include_values=False
         )
-
+        return [match['metadata']['chunk_text'] for match in data['matches']]
 
     def fetch_data(self, ids: str | list[str]) -> FetchResponse | PineconeGrpcFuture:
         return self.index.fetch([ids]) if type(ids) == str else self.index.fetch(ids)
