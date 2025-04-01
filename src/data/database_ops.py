@@ -109,13 +109,16 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
         Returns:
             list[str]: The most similar text chunks.
         """
+
         data = self.index.query(
+            namespace="default-namespace",
             vector=Embedding.create_embedding(text).tolist(),
             top_k=top_k,
             include_metadata=True,
             include_values=False
         )
-        return [match['metadata']['chunk_text'] for match in data['matches']]
+
+        return [match['metadata']['text'] for match in data['matches']]
 
     def fetch_data(self, ids: str | list[str]) -> FetchResponse | PineconeGrpcFuture:
         return self.index.fetch([ids]) if type(ids) == str else self.index.fetch(ids)
@@ -135,6 +138,9 @@ def upsert_file_to_database(path_to_file: Path, batch_size: int) -> bool:
         print("Upserting data from: {}".format(path_to_file.name))
         database.upsert_data(records=embeddings, batch_size=batch_size)
 
+def test_database_query(text: str, top_k: int) -> None: 
+    database: PineconeVectorDatabase = PineconeVectorDatabase()
+    print(database.query_data(text, top_k))
 
 
 if __name__ == "__main__": 
