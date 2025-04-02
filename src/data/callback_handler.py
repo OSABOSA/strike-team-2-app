@@ -10,9 +10,12 @@ class CallbackType(Enum):
 
 
 def callback_llm_response(response_type, response):
-    if response_type == CallbackType.RESPONSE or response_type == CallbackType.STATUS:
-        st.write(response)
-    elif response_type == CallbackType.INIT:
-        st.write(f"Searching in database for {response}")
+    if response_type == CallbackType.STATUS:
+        st.session_state.response_container.write(f'Searching in database for "{response}"...\n')
 
+    if response_type == CallbackType.DELTA:
+        if "current_response" not in st.session_state:
+            st.session_state.current_response = ""
+        st.session_state.current_response += response  # Append new delta to stored response
+        st.session_state.response_container.markdown(st.session_state.current_response, unsafe_allow_html=True)
 

@@ -7,6 +7,27 @@ from src.data.callback_handler import CallbackType
 
 class LlmModule:
 
+    @staticmethod
+    def convert(obj):
+        # If the object is already a dictionary, return a shallow copy.
+        if isinstance(obj, dict):
+            return obj.copy()
+
+        # If the object has a __dict__, use it.
+        if hasattr(obj, '__dict__'):
+            return obj.__dict__
+
+        # Fallback: inspect the object using dir() and filter out private and callable attributes.
+        result = {}
+        for attribute in dir(obj):
+            # Ignore private attributes and methods.
+            if attribute.startswith('_'):
+                continue
+            value = getattr(obj, attribute)
+            if not callable(value):
+                result[attribute] = value
+        return result
+
     def __init__(self, progress_callback: Callable[[CallbackType, str], None], db_query_callback: Callable[[str, int], list], model_name="gpt-4o-mini"):
         self.progress_callback = progress_callback
         self.db_query_callback = db_query_callback
@@ -44,18 +65,30 @@ class LlmModule:
             if tool_call.type != "function_call":
                 continue
             used_tools = True
-            self.progress_callback(CallbackType.STATUS, "Thinking...")
-            self.messages.append(tool_call)
+
+            self.messages.append(LlmModule.convert(tool_call))
             args = json.loads(tool_call.arguments)
-            self.progress_callback(CallbackType.INIT, "test")
+            self.progress_callback(CallbackType.STATUS, args["query"])
             result: list = self.db_query_callback(args["query"], args["num_results"])  # database interface
-            self.messages.append({
-                "status": "success",
-                "type": "function_call_output",
-                "call_id": tool_call.call_id,
-                "output": json.dumps(result)
-            })
+
+            if len(result) is not 0:
+                self.messages.append({
+                    "status": "success",
+                    "type": "function_call_output",
+                    "call_id": tool_call.call_id,
+                    "output": json.dumps(result)
+                })
+            else:
+                self.messages.append({
+                    "status": "fail",
+                    "type": "function_call_output",
+                    "call_id": tool_call.call_id,
+                    "output": ""
+                })
         return used_tools
+
+    def get_messages(self):
+        return self.messages
 
     def reset_messages(self):
         self.messages = []
@@ -78,14 +111,6 @@ class LlmModule:
                 items.append(event.item)
         return items
 
-    '''def get_response(self):
-        return self.client.responses.create(
-            model=self.model,
-            input=self.messages,
-            tools=self.tools
-        )'''
-
-
     def chat(self, query):
 
         self.messages.append({
@@ -99,11 +124,11 @@ class LlmModule:
             response = self.get_response()
             self.messages.append({
                 "role": "assistant",
-                "content": response[0].content
+                "content": response[0].content[0].text
             })
         else:
             self.messages.append({
                 "role": "assistant",
-                "content": response[0].content
+                "content": response[0].content[0].text
             })
-        self.progress_callback(CallbackType.RESPONSE, response[0].content)
+        self.progress_callback(CallbackType.RESPONSE, response[0].content[0].text)
