@@ -12,8 +12,16 @@ if "llm" not in st.session_state:
         progress_callback=callback_llm_response, db_query_callback=database.query_data
     )
 
-st.title("Car review finder")
-st.write("This is a simple app that finds car reviews.")
+col1, col2 = st.columns([4, 1])  # Adjust ratio for spacing
+
+with col1:
+    st.title("Car review finder")
+    st.write("This is a simple app that finds car reviews.")
+
+with col2:
+    if st.button("Clear conversation"):
+        st.session_state.llm.reset_messages()  # Clears chat history
+        st.rerun()  # Refresh to reflect changes
 
 for message in st.session_state.llm.get_messages():
     try:
@@ -33,5 +41,5 @@ if user_input:
         st.session_state.response_container = st.empty()
         st.session_state.current_response = ""  # Reset response storage
         st.session_state.llm.chat(user_input)  # Streaming via callback
-        print(st.session_state.llm.get_messages())
-        print("\n\n")
+        #print(st.session_state.llm.get_messages())
+        #print("\n\n")
