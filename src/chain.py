@@ -8,7 +8,7 @@ from src.data.callback_handler import CallbackType
 class LlmModule:
 
     def __init__(self, progress_callback: Callable[[CallbackType, str], None], db_query_callback: Callable[[str, int], list], model_name="gpt-4o-mini"):
-        self.progress_callback = progress_callback
+        self.universal_callback = progress_callback
         self.db_query_callback = db_query_callback
         self.client = OpenAI()
         self.model = model_name
@@ -38,6 +38,27 @@ class LlmModule:
         }]
         self.messages = []  # [{"role": "user", "content": ""}]
 
+    @staticmethod
+    def class_to_dict(obj):
+        if not hasattr(obj, "__dict__"):
+            raise ValueError("Provided object is not a class instance")
+
+        result = {}
+        for key, value in obj.__dict__.items():
+            if isinstance(value, str):
+                try:
+                    parsed_value = json.loads(value)
+                    if isinstance(parsed_value, dict):
+                        result[key] = parsed_value
+                    else:
+                        result[key] = value
+                except json.JSONDecodeError:
+                    result[key] = value
+            else:
+                result[key] = value
+
+        return result
+
     def process_tool_calls(self, response):
         used_tools = False
         for tool_call in response:
@@ -45,10 +66,14 @@ class LlmModule:
                 continue
             used_tools = True
 
-            self.messages.append(tool_call)  # broken
+            self.messages.append(LlmModule.class_to_dict(tool_call))
             args = json.loads(tool_call.arguments)
-            self.progress_callback(CallbackType.STATUS, args["query"])
+
+            self.universal_callback(CallbackType.DELETE, None)
+            self.universal_callback(CallbackType.STATUS, args["query"])
+
             result: list = self.db_query_callback(args["query"], args["num_results"])  # database interface
+            self.universal_callback(CallbackType.INIT, result)
 
             if len(result) is not 0:
                 self.messages.append({
@@ -80,9 +105,9 @@ class LlmModule:
         items = []
         for event in stream:
             if event.type == "response.output_text.delta":
-                self.progress_callback(CallbackType.DELTA, event.delta)
+                self.universal_callback(CallbackType.DELTA, event.delta)
             if event.type == "response.output_text.done":
-                self.progress_callback(CallbackType.RESPONSE, event.text)
+                self.universal_callback(CallbackType.RESPONSE, event.text)
             if event.type == "response.output_item.done":
                 items.append(event.item)
         return items
@@ -108,11 +133,12 @@ class LlmModule:
             response = self.get_response()
             self.messages.append({
                 "role": "assistant",
-                "content": response[0].content
+                "content": response[0].text
             })
         else:
             self.messages.append({
                 "role": "assistant",
-                "content": response[0].content
+                "content": response[0].text
             })
-        self.progress_callback(CallbackType.RESPONSE, response[0].content)
+        self.universal_callback(CallbackType.RESPONSE, response[0].text)
+        print(self.messages)
