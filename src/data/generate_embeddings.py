@@ -28,7 +28,7 @@ class Embedding:
         self._default_str = content_to_embed
         self.metadata = metadata
 
-        self.vector = Embedding.create_embedding(content_to_embed)
+        self.vector = Embedding.create_embedding(f"{metadata["vehicle_model"]}: ({metadata["review_title"]}) {content_to_embed}")
 
     def to_pinecone_record(self) -> dict[str, Union[str, ndarray, dict]]:
         return { "id": self.id, "values": self.vector.tolist(), "metadata": self.metadata }

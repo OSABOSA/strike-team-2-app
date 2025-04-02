@@ -8,6 +8,7 @@ from pinecone.core.openapi.db_data.model.fetch_response import FetchResponse
 
 import msgpack
 import tqdm
+import json
 from src import EMBEDDINGS_FOLDER
 from abc import ABC, abstractmethod
 from src import get_config
@@ -118,7 +119,12 @@ class PineconeVectorDatabase(VectorDatabaseInterface):
             include_values=False
         )
 
-        return [match['metadata']['text'] for match in data['matches']]
+        # f"{match['metadata']['vehicle_model']}; \
+        #             {match['metadata']['review_title']}; \
+        #             {match['metadata']['text']} {match['metadata']['text']}; \
+        #             Overall rating: {}/5" 
+
+        return [json.dumps(match['metadata']) for match in data['matches']]
 
     def fetch_data(self, ids: str | list[str]) -> FetchResponse | PineconeGrpcFuture:
         return self.index.fetch([ids]) if type(ids) == str else self.index.fetch(ids)
@@ -146,10 +152,13 @@ def test_database_query(text: str, top_k: int) -> None:
 if __name__ == "__main__": 
 
     database: PineconeVectorDatabase = PineconeVectorDatabase()
-    print(database.get_index_description())
 
-    # input_files: list[Path] = EMBEDDINGS_FOLDER.listdir()
+    
+    # print(database.get_index_description())
 
-    # for embeddings_file in input_files:
-    #     upsert_file_to_database(embeddings_file, 100)
+    input_files: list[Path] = EMBEDDINGS_FOLDER.listdir()
+
+    for embeddings_file in input_files:
+        upsert_file_to_database(embeddings_file, 200)
+
 
